@@ -1,0 +1,35 @@
+Manual zur Nutzung des Moduls für den SnoozeEmgineer
+
+----------
+WICHTIG: Zunächst muss das Hardware-Setup stattfinden. Dafür alle Komponenten des SnoozeEmgineer nach Plan zusammensetzen. Anschließend den Sensor am Oberarm entlang des M. biceps brachii platzieren.
+-----------
+
+
+Abfolge der Nutzungsschritte
+
+1. Code starten
+
+2. Nach Aufforderung (Konsole) Alarmzeit in angegebenem Format eingeben
+
+3. Nach Aufforderung (Konsole) bestätigen, dass der Sensor platziert ist
+
+4. Während erster Kalibrierungsphase den Oberarm fest anspannen
+
+5. Überprüfen ob Maximalwert erreicht wurde (Abgleich in Konsole)
+
+6. Während zweiter Kalibrierungsphase den Arm normal bewegen
+
+7. Überprüfen ob Maximalwert unterschritten (Abgleich in Konsole)
+
+SNOOZEEMGINEER IST AKTIV
+
+
+Anpassungsmöglichkeiten
+
+- Die Länge der Snoozezeit lässt sich in der Zeile
+input_weckzeit[1] = input_weckzeit[1] + 1 # add 1 minutes to alarm time
+beliebig anpassen
+
+- Die Anzahl der erlaubten Snoozevorgänge lässt sich in der Zeile
+if snoozed < 1: # has not snoozed so far, allow snoozing
+beliebig anpassen
