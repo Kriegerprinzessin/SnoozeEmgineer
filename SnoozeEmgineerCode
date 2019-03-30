@@ -1,0 +1,136 @@
+"""Docstring: Module for Snooze Emgineer.
+
+Lets Raspberry Pi (with speakers) work as alarm clock, snoozable via EMG sensor.
+Final product for 'Einführung in die Programmierung und Ingenieurwissenschaftliches Projekt
+für Psychologinnen und Psychologen' @ TU Berlin, WS 2018/19
+"""
+
+import pygame, time, grovepi, board, busio
+import grove_rgb_lcd as lcd
+import adafruit_ads1x15.ads1015 as ADS
+from adafruit_ads1x15.analog_in import AnalogIn
+
+
+__author__ = "Sina, Xintao, Yuexin, Xintao"
+
+# dictionary for max raw values based on gain
+max_values = {2/3: 1038, 1: 1557, 2: 2047, 4: 2047, 8: 2047, 16: 2047}
+
+# start and setup the display
+lcd.setRGB(0,128,64)
+lcd.setRGB(0,255,0)
+lcd.setText("Snooze Emgineer\nWelcome!")
+
+# input desired alarm time
+while True:
+    print("Bitte gib deine Weckzeit ein! (HH:MM)")
+    input_weckzeit = input().split(":")
+    if len(input_weckzeit) == 2 and int(input_weckzeit[0]) in range(0,24) \
+    and int(input_weckzeit[1]) in range (0,60):
+        break
+
+# make sure the sensor is attached before starting recording
+while True:
+    print("Ist der Sensor bereit? (ja)")
+    input_sensor = input()
+    if input_sensor == "ja":
+        break
+
+# calibration recordings at rest ("what does noise with no actual activity look like?")
+while True:
+    gain = 2/3 # here set GAIN (only changes raw, not voltage), later change in GAIN: chan._ads.gain = #
+    lcd.setText("Kalibrierung, \nArm anspannen.")
+    i2c = busio.I2C(board.SCL, board.SDA) # create I2C bus
+    ads = ADS.ADS1015(i2c, gain = gain) # create ADC object
+    chan = AnalogIn(ads, ADS.P0) # create input on channel 0 (P0 is A0 on ADC chip)
+    value_list = []
+    for i in range(1,11): # 10 rounds at .5 seconds means 5 seconds of rest recording
+        value_list.append(chan.value) # recording raw values, voltages accesible via chan.voltage
+        time.sleep(0.5)
+    lcd.setText(" ")
+    print(max(value_list))
+    print("Ist der Maximalwert erreicht? (ja/nein)")
+    print("Maximalwert: " + str(max_values[gain]))
+    input_flex = input()
+    if input_flex == "ja":
+        threshold = max_values[gain]
+        lcd.setText("Kalibrierung \nArm bewegen.")
+        value_list2 = []
+        for i in range(1, 11):
+            value_list2.append(chan.value)
+            time.sleep(0.5)
+        lcd.setText(" ")
+        print(max(value_list2))
+        print("Ist der Maximalwert unterschritten? (ja/nein)")
+        print("Maximalwert: " + str(max_values[gain]))
+        input_wiggle = input()
+        if input_wiggle == "ja":
+            lcd.setText("Alles bereit. \nGuten Schlaf ;)")
+            break
+        else:
+            print("Elektroden neu gesetzt? (ja)")
+            input()
+    else:
+        print("Elektroden neu gesetzt? (ja)")
+        input()
+
+# main loop comparing times!
+snoozed = 0
+while True:
+    t = time.localtime()
+    if t.tm_hour == int(input_weckzeit[0]) and t.tm_min == int(input_weckzeit[1]): # it's alarm time, play the sound and wait for action
+        if snoozed < 1: # has not snoozed so far, allow snoozing
+            lcd.setText("(O.O) Aufstehen \n oder Snoozen!")
+            pygame.mixer.init()
+            pygame.mixer.music.load("/home/pi/Desktop/Snooze_Emgineer/alarm_music.mp3") # careful, this path has to be correct!
+            pygame.mixer.music.play(loops = -1)
+            while True:
+                if chan.value == threshold:
+                    pygame.mixer.music.stop()
+                    snoozed += 1
+                    # transform times into integers
+                    input_weckzeit[1] = int(input_weckzeit[1])
+                    input_weckzeit[0] = int(input_weckzeit[0])
+                    # calculate new alarm time
+                    input_weckzeit[1] = input_weckzeit[1] + 1 # add 1 minutes to alarm time
+                    if input_weckzeit[1] > 59:
+                        input_weckzeit[0] = input_weckzeit[0] + 1
+                        input_weckzeit[1] = input_weckzeit[1] - 60
+                    if input_weckzeit[0] == 24:
+                        input_weckzeit[0] = 0
+                    # transform times back into string
+                    if input_weckzeit[1] < 10:
+                        input_weckzeit[1] = "0" + str(input_weckzeit[1])
+                    else:
+                        input_weckzeit[1] = str(input_weckzeit[1])
+                    if int(input_weckzeit[0]) < 10:
+                        input_weckzeit[0] = "0" + str(input_weckzeit[0])
+                    else:
+                        input_weckzeit[0] = str(input_weckzeit[0])
+                    break
+        else: # has snoozed before, don't allow snoozing (forces button interrupt)
+            lcd.setText("(T.T) Aufstehen \n undzwar JETZT!")
+            pygame.mixer.init()
+            pygame.mixer.music.load("/home/pi/Desktop/Snooze_Emgineer/alarm_music.mp3") # careful, this path has to be correct!
+            pygame.mixer.music.play(loops = -1)
+            grovepi.pinMode(4, "INPUT")
+            while True:
+                button_status = grovepi.digitalRead(4)
+                if button_status:
+                    pygame.mixer.music.stop()
+                    lcd.setText("Vielen Dank :) \nHave a nice day!")
+                    time.sleep(5)
+                    lcd.setText("Snooze Emgineer\n  zzZzzzZzzz!")
+                    break
+            break
+    else: # it's not alarm time, show the times on screen
+        if t.tm_min < 10:
+            alarm_min = "0" + str(t.tm_min)
+        else:
+            alarm_min = str(t.tm_min)
+        if t.tm_hour < 10:
+            alarm_hour = "0" + str(t.tm_hour)
+        else:
+            alarm_hour = str(t.tm_hour)
+        lcd.setText_norefresh("Zeit       " + alarm_hour + ":" + alarm_min + "\n" + "Weckzeit   " + input_weckzeit[0] + ":" + input_weckzeit[1])
+    time.sleep(1) # check again after 1 second
