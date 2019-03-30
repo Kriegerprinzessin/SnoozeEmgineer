@@ -11,7 +11,7 @@ import adafruit_ads1x15.ads1015 as ADS
 from adafruit_ads1x15.analog_in import AnalogIn
 
 
-__author__ = "Sina, Xintao, Yuexin, Xintao"
+__author__ = "Sina, Xintao, Yuexin"
 
 # dictionary for max raw values based on gain
 max_values = {2/3: 1038, 1: 1557, 2: 2047, 4: 2047, 8: 2047, 16: 2047}
